@@ -74,16 +74,20 @@ def rushing_offense(df_plays):
         .unstack()
     )
 
-
 def red_zone_offense(df_plays):
-    rz = df_plays[df_plays['yardline_100'] <= 20]
+rz_plays = df_plays[df_plays['yardline_100'] <= 20]
+    rz_drives = rz_plays.groupby(['game_id', 'posteam', 'drive']).size().reset_index()
+    drive_results = df_plays.groupby(['game_id', 'posteam', 'drive'])['fixed_drive_result'].first().reset_index()
+    rz_analysis = pd.merge(rz_drives, drive_results, on=['game_id', 'posteam', 'drive'])
+    rz_analysis['success'] = rz_analysis['fixed_drive_result'].isin(['Touchdown', 'Field Goal']).astype(int)
     rz_scores = (
-        rz.groupby(['game_id', 'posteam'])
-        .apply(lambda g: (g['touchdown'].sum() + g['field_goal_result'].isin(['made']).sum()) / len(g))
+        rz_analysis.groupby(['game_id', 'posteam'])['success']
+        .mean()
         .reset_index(name='rz_score')
         .pivot(index='game_id', columns='posteam', values='rz_score')
     )
     return rz_scores
+
 
 
 def defensive_pressure(df_plays):
@@ -104,14 +108,14 @@ def defensive_pass_epa(df_plays):
         .unstack()
     )
 
-
 def turnovers(df_plays):
-    return (
+giveaways = (
         df_plays.groupby(['game_id', 'posteam'])
-        .apply(lambda g: (g['interception'].sum() + g['fumble_lost'].sum()) * -1)
-        .reset_index(name='turnover_margin')
-        .pivot(index='game_id', columns='posteam', values='turnover_margin')
+        .apply(lambda g: (g['interception'].sum() + g['fumble_lost'].sum()))
+        .reset_index(name='giveaways')
+        .pivot(index='game_id', columns='posteam', values='giveaways')
     )
+    return giveaways
 
 
 def third_down(df_plays):
@@ -136,17 +140,20 @@ def field_goal_epa(df_plays):
 
 def time_of_possession(df_plays):
     if 'drive_time_of_possession' in df_plays.columns:
+        def top_to_seconds(val):
+            if pd.isna(val) or ":" not in str(val): return 0
+            m, s = map(int, str(val).split(':'))
+            return m * 60 + s
+        drive_top = df_plays.groupby(['game_id', 'posteam', 'drive'])['drive_time_of_possession'].first().reset_index()
+        drive_top['seconds'] = drive_top['drive_time_of_possession'].apply(top_to_seconds)
+        
         return (
-            df_plays.groupby(['game_id', 'posteam'])['drive_time_of_possession']
+            drive_top.groupby(['game_id', 'posteam'])['seconds']
             .sum()
             .unstack()
         )
     else:
-        return (
-            df_plays.groupby(['game_id', 'posteam'])['drive']
-            .count()
-            .unstack()
-        )
+        return df_plays.groupby(['game_id', 'posteam']).size().unstack()
 
 
 def penalty_yards(df_plays):
@@ -178,14 +185,21 @@ def build_game_iv_dataset(df_plays):
     iv_tables = {name: fn(df_plays).apply(pd.to_numeric, errors='coerce')
                  for name, fn in iv_funcs.items()}
 
-    # Apply home-away differentials
+# Apply home-away differentials
     for name, table in iv_tables.items():
-        game_results[f"diff_{name}"] = game_results.apply(
-            lambda r: compute_diff(r, table), axis=1
-        )
+        if name == 'turnover':
+            # Spezial-Logik für Turnover Margin: Away_Giveaways - Home_Giveaways
+            game_results["diff_turnover"] = game_results.apply(
+                lambda r: (table.at[r['game_id'], r['away_team']] - table.at[r['game_id'], r['home_team']])
+                if r['game_id'] in table.index and r['home_team'] in table.columns and r['away_team'] in table.columns
+                else 0.0, axis=1
+            )
+        else:
+            game_results[f"diff_{name}"] = game_results.apply(
+                lambda r: compute_diff(r, table), axis=1
+            )
 
     return game_results, iv_tables
-
 
 def build_full_dataset(filepath):
     df_plays = load_data(filepath)
