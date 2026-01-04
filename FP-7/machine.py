@@ -1,178 +1,126 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": 2,
-   "id": "b0395c87-6de8-4d3b-87b3-d172e95d639b",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import pandas as pd\n",
-    "import numpy as np\n",
-    "import matplotlib.pyplot as plt\n",
-    "import seaborn as sns\n",
-    "from sklearn.linear_model import LogisticRegression\n",
-    "from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold\n",
-    "from sklearn.preprocessing import StandardScaler\n",
-    "from sklearn.metrics import accuracy_score, classification_report, roc_curve, auc, confusion_matrix\n",
-    "import statsmodels.api as sm\n",
-    "\n",
-    "def prepare_data_for_ml(df):\n",
-    "    \"\"\"\n",
-    "    Prepares the dataframe for machine learning.\n",
-    "    - Selects feature columns (starting with 'diff_')\n",
-    "    - Drops NaNs\n",
-    "    - Separates features (X) and target (y)\n",
-    "    \"\"\"\n",
-    "    # Select features and target\n",
-    "    feature_cols = [c for c in df.columns if c.startswith('diff_')]\n",
-    "    target_col = 'home_win'\n",
-    "    \n",
-    "    # Create a clean copy\n",
-    "    data = df[feature_cols + [target_col]].copy()\n",
-    "    \n",
-    "    # Drop rows with missing values (essential for ML)\n",
-    "    data_clean = data.dropna()\n",
-    "    \n",
-    "    print(f\"Data shape after dropping NaNs: {data_clean.shape} (Original: {df.shape})\")\n",
-    "    \n",
-    "    X = data_clean[feature_cols]\n",
-    "    y = data_clean[target_col]\n",
-    "    \n",
-    "    return X, y, feature_cols\n",
-    "\n",
-    "def run_insightful_analysis(X, y):\n",
-    "    \"\"\"\n",
-    "    Runs a rigorous logistic regression analysis with validation.\n",
-    "    Returns the model, scaler, test sets, and metrics.\n",
-    "    \"\"\"\n",
-    "    # 1. Split Data (Validation Step)\n",
-    "    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)\n",
-    "    \n",
-    "    # 2. Scale Data (Essential for comparing feature importance in the GM Blueprint)\n",
-    "    scaler = StandardScaler()\n",
-    "    X_train_scaled = scaler.fit_transform(X_train)\n",
-    "    X_test_scaled = scaler.transform(X_test)\n",
-    "    \n",
-    "    # 3. Train Model\n",
-    "    model = LogisticRegression(random_state=42)\n",
-    "    model.fit(X_train_scaled, y_train)\n",
-    "    \n",
-    "    # 4. Cross-Validation (Robustness check)\n",
-    "    cv = StratifiedKFold(n_splits=5)\n",
-    "    cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=cv, scoring='accuracy')\n",
-    "    \n",
-    "    print(\"\\n--- Model Validation Results ---\")\n",
-    "    print(f\"Training Accuracy (Mean CV): {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})\")\n",
-    "    \n",
-    "    # 5. Test Set Evaluation\n",
-    "    y_pred = model.predict(X_test_scaled)\n",
-    "    test_acc = accuracy_score(y_test, y_pred)\n",
-    "    print(f\"Test Set Accuracy: {test_acc:.3f}\")\n",
-    "    \n",
-    "    # 6. STATISTICAL INSIGHT (Addressing instructor's 'simple analysis' critique)\n",
-    "    # Using statsmodels to get p-values for hypothesis testing of coefficients\n",
-    "    X_train_sm = sm.add_constant(pd.DataFrame(X_train_scaled, columns=X.columns, index=X_train.index))\n",
-    "    logit_model = sm.Logit(y_train, X_train_sm)\n",
-    "    try:\n",
-    "        result = logit_model.fit(disp=0)\n",
-    "        print(\"\\n--- Detailed Statistical Summary (p-values) ---\")\n",
-    "        print(result.summary().tables[1])\n",
-    "    except:\n",
-    "        print(\"Could not converge statistical model.\")\n",
-    "\n",
-    "    return model, scaler, X_test_scaled, y_test\n",
-    "\n",
-    "def plot_gm_blueprint(model, feature_names):\n",
-    "    \"\"\"\n",
-    "    MAIN RESULT 1: Feature Importance.\n",
-    "    This visualizes the 'GM's Blueprint' by showing which factors \n",
-    "    have the highest marginal contribution to winning.\n",
-    "    \"\"\"\n",
-    "    # Get coefficients\n",
-    "    coefs = model.coef_[0]\n",
-    "    \n",
-    "    # Create DataFrame for plotting\n",
-    "    importance = pd.DataFrame({\n",
-    "        'Feature': feature_names,\n",
-    "        'Importance': coefs\n",
-    "    })\n",
-    "    \n",
-    "    # Sort by absolute value to show most impactful first\n",
-    "    importance['Abs_Importance'] = importance['Importance'].abs()\n",
-    "    importance = importance.sort_values('Abs_Importance', ascending=True)\n",
-    "    \n",
-    "    # Colors: Green for positive correlation, Red for negative\n",
-    "    colors = ['green' if x > 0 else 'red' for x in importance['Importance']]\n",
-    "    \n",
-    "    plt.figure(figsize=(10, 6))\n",
-    "    bars = plt.barh(importance['Feature'], importance['Importance'], color=colors, alpha=0.7)\n",
-    "    \n",
-    "    plt.axvline(x=0, color='black', linestyle='-', linewidth=0.5)\n",
-    "    plt.xlabel('Marginal Contribution to Win Probability (Standardized Coefficient)')\n",
-    "    plt.title(\"The GM's Blueprint: Which Units Drive Wins?\")\n",
-    "    plt.grid(axis='x', linestyle='--', alpha=0.6)\n",
-    "    \n",
-    "    # Annotate significance\n",
-    "    plt.text(0.5, 0.05, 'Right (Green) = Helps Home Team Win\\nLeft (Red) = Helps Away Team Win', \n",
-    "             transform=plt.gca().transAxes, ha='center', bbox=dict(facecolor='white', alpha=0.8))\n",
-    "    \n",
-    "    return plt\n",
-    "\n",
-    "def plot_model_performance(model, X_test, y_test):\n",
-    "    \"\"\"\n",
-    "    MAIN RESULT 2: ROC Curve.\n",
-    "    Demonstrates the predictive power of the model (Validation).\n",
-    "    \"\"\"\n",
-    "    # Get probabilities\n",
-    "    y_pred_proba = model.predict_proba(X_test)[:, 1]\n",
-    "    \n",
-    "    # Calculate ROC metrics\n",
-    "    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)\n",
-    "    roc_auc = auc(fpr, tpr)\n",
-    "    \n",
-    "    plt.figure(figsize=(8, 6))\n",
-    "    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Logistic Regression (AUC = {roc_auc:.2f})')\n",
-    "    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')\n",
-    "    plt.xlim([0.0, 1.0])\n",
-    "    plt.ylim([0.0, 1.05])\n",
-    "    plt.xlabel('False Positive Rate')\n",
-    "    plt.ylabel('True Positive Rate')\n",
-    "    plt.title('Validation: Model Predictive Power (ROC Curve)')\n",
-    "    plt.legend(loc=\"lower right\")\n",
-    "    plt.grid(True, alpha=0.3)\n",
-    "    \n",
-    "    return plt"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "61e0be23-9ad9-4786-bff5-3e82f685e7c9",
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python [conda env:base] *",
-   "language": "python",
-   "name": "conda-base-py"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.13.5"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import (
+    roc_auc_score,
+    accuracy_score,
+    roc_curve,
+)
+# DATA PREP
+FEATURES = [
+    "diff_pass_epa",
+    "diff_rush_epa",
+    "diff_rz",
+    "diff_sack",
+    "diff_def_pass_epa",
+    "diff_turnover",
+    "diff_third_down",
+    "diff_top",
+    "diff_penalty",
+    "diff_st_epa",
+]
+
+def prepare_data(df):
+    X = df[FEATURES]
+    y = df["home_win"]
+    X = X.replace([np.inf, -np.inf], np.nan)
+    mask = X.notna().all(axis=1)
+    return X.loc[mask], y.loc[mask]
+
+# MODEL EXPLORATION
+def evaluate_models(X, y):
+    """
+    Explore several ML models with cross-validation.
+    """
+    models = {
+        "Logistic Regression": Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", LogisticRegression(max_iter=1000))
+        ]),
+        "Random Forest": RandomForestClassifier(
+            n_estimators=300,
+            max_depth=6,
+            random_state=42
+        ),
+        "Gradient Boosting": GradientBoostingClassifier(
+            n_estimators=300,
+            learning_rate=0.05,
+            max_depth=3,
+            random_state=42
+        ),
+    }
+    results = {}
+    for name, model in models.items():
+        scores = cross_val_score(
+            model, X, y, cv=5, scoring="roc_auc"
+        )
+        results[name] = {
+            "cv_auc_mean": scores.mean(),
+            "cv_auc_std": scores.std(),
+        }
+    return results
+# FINAL MODEL: LOGISTIC REGRESSION WP MODEL
+def train_final_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.25, random_state=42, stratify=y
+    )
+    model = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(max_iter=1000))
+    ])
+    model.fit(X_train, y_train)
+    y_prob = model.predict_proba(X_test)[:, 1]
+    y_pred = model.predict(X_test)
+    metrics = {
+        "roc_auc": roc_auc_score(y_test, y_prob),
+        "accuracy": accuracy_score(y_test, y_pred),
+    }
+    return model, X_test, y_test, y_prob, metrics
+# FIG ROC CURVE MAIN RESULT
+def plot_roc_curve(y_true, y_prob):
+    """
+    FIGURE CANDIDATE (ONLY ONE FOR MAIN NOTEBOOK):
+    ROC Curve of Win Probability Model
+    """
+    fpr, tpr, _ = roc_curve(y_true, y_prob)
+    plt.figure(figsize=(6, 5))
+    plt.plot(fpr, tpr, label="WP Model")
+    plt.plot([0, 1], [0, 1], linestyle="--", label="Random Guess")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Fig.5: ROC Curve – Win Probability Model")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+# FEATURE IMPORTANCE (INTERPRETATION)
+def logistic_feature_importance(model, feature_names):
+    """
+    Return standardized coefficients for interpretation.
+    """
+    coef = model.named_steps["model"].coef_[0]
+    return pd.Series(coef, index=feature_names).sort_values()
+    
+# MASTER FUNCTION
+def run_machine_learning(df):
+    """
+    Full ML workflow.
+    Only the ROC curve should be reported in the main notebook.
+    """
+    X, y = prepare_data(df)
+    exploration = evaluate_models(X, y)
+    model, X_test, y_test, y_prob, metrics = train_final_model(X, y)
+    feature_importance = logistic_feature_importance(model, FEATURES)
+    return {
+        "model_comparison": exploration,
+        "final_metrics": metrics,
+        "feature_importance": feature_importance,
+        "y_test": y_test,
+        "y_prob": y_prob,
+    }
