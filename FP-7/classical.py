@@ -131,6 +131,52 @@ def game_control_tests(df):
     results["composite_control"] = ttest_groups(high, low)
     return results
 
+# H5: PASSING EPA (ML-MOTIVATED)
+def passing_epa_tests(df):
+    """
+    Hypothesis test for Passing EPA differential.
+    Motivated by machine learning results.
+    """
+    results = {}
+
+    # Median split
+    high = df[median_split(df["diff_pass_epa"])]["score_diff"]
+    low = df[~median_split(df["diff_pass_epa"])]["score_diff"]
+    results["median_split"] = ttest_groups(high, low)
+
+    # Quartile split (primary result)
+    low_q, high_q = quartile_split(df["diff_pass_epa"])
+    results["quartile_split"] = ttest_groups(
+        df.loc[high_q, "score_diff"],
+        df.loc[low_q, "score_diff"]
+    )
+    return results
+
+def plot_passing_epa(df):
+    """
+    FIGURE CANDIDATE:
+    Score Differential by Passing EPA Advantage
+    """
+    low, high = quartile_split(df["diff_pass_epa"])
+    df_plot = df.loc[low | high].copy()
+    df_plot["Passing EPA Advantage"] = np.where(
+        high[low | high],
+        "Top 25%",
+        "Bottom 25%"
+    )
+    plt.figure(figsize=(6, 4))
+    df_plot.boxplot(
+        column="score_diff",
+        by="Passing EPA Advantage",
+        grid=False
+    )
+    plt.title("Fig.4: Score Differential by Passing Efficiency")
+    plt.suptitle("")
+    plt.xlabel("")
+    plt.ylabel("Score Differential (Home − Away)")
+    plt.tight_layout()
+    plt.show()
+
 def run_all_hypothesis_tests(df):
     """
     Run all hypothesis tests.
@@ -141,5 +187,6 @@ def run_all_hypothesis_tests(df):
         "redzone": redzone_tests(df),
         "special_teams": special_teams_tests(df),
         "game_control": game_control_tests(df),
+        "passing_epa": passing_epa_tests(df),
     }
     return results
