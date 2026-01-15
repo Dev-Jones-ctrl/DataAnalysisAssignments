@@ -30,7 +30,7 @@ def run_improved_machine_learning(df, n_components=5):
 
 def plot_improved_roc_curve(y_true, y_prob):
     """
-    Fig.6: ROC Curve – PCA-Enhanced Win Probability Model
+    Fig.5: ROC Curve – PCA-Enhanced Win Probability Model
     """
     fpr, tpr, _ = roc_curve(y_true, y_prob)
     plt.figure(figsize=(6, 5))
@@ -38,14 +38,14 @@ def plot_improved_roc_curve(y_true, y_prob):
     plt.plot([0, 1], [0, 1], linestyle="--", label="Random Guess")
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("Fig.6: ROC Curve – PCA-Enhanced Win Probability Model")
+    plt.title("Fig.5: ROC Curve – PCA-Enhanced Win Probability Model")
     plt.legend()
     plt.tight_layout()
     plt.show()
 
 def plot_pca_loadings(model, feature_names):
     """
-    Fig.7: PCA Loadings – Key Performance Dimensions
+    Fig.6: PCA Loadings – Key Performance Dimensions
     (visual only, no table output)
     """
     pca = model.named_steps["pca"]
@@ -57,7 +57,7 @@ def plot_pca_loadings(model, feature_names):
     plt.figure(figsize=(8, 5))
     loadings.abs().sum(axis=1).sort_values().plot(kind="barh")
     plt.xlabel("Aggregate Absolute Loading")
-    plt.title("Fig.7: PCA Loadings – Key Performance Dimensions")
+    plt.title("Fig.6: PCA Loadings – Key Performance Dimensions")
     plt.tight_layout()
     plt.show()
 
