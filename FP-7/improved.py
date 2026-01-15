@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve
 from machine import FEATURES, prepare_data
+
 def run_improved_machine_learning(df, n_components=5):
     X, y = prepare_data(df)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -20,16 +21,16 @@ def run_improved_machine_learning(df, n_components=5):
     ])
     model.fit(X_train, y_train)
     y_prob = model.predict_proba(X_test)[:, 1]
-    roc_auc = roc_auc_score(y_test, y_prob)
     return {
         "model": model,
-        "roc_auc": roc_auc,
+        "roc_auc": roc_auc_score(y_test, y_prob),
         "y_test": y_test,
         "y_prob": y_prob,
     }
+
 def plot_improved_roc_curve(y_true, y_prob):
     """
-    Fig.5: ROC Curve – PCA-Enhanced Win Probability Model
+    Fig.6: ROC Curve – PCA-Enhanced Win Probability Model
     """
     fpr, tpr, _ = roc_curve(y_true, y_prob)
     plt.figure(figsize=(6, 5))
@@ -41,9 +42,11 @@ def plot_improved_roc_curve(y_true, y_prob):
     plt.legend()
     plt.tight_layout()
     plt.show()
+
 def plot_pca_loadings(model, feature_names):
     """
-    Fig.6: PCA Loadings – Dominant Performance Dimensions
+    Fig.7: PCA Loadings – Key Performance Dimensions
+    (visual only, no table output)
     """
     pca = model.named_steps["pca"]
     loadings = pd.DataFrame(
@@ -57,4 +60,14 @@ def plot_pca_loadings(model, feature_names):
     plt.title("Fig.7: PCA Loadings – Key Performance Dimensions")
     plt.tight_layout()
     plt.show()
-    return loadings
+
+def get_pca_loadings(model, feature_names):
+    """
+    PCA loading table for analysis details only (not main report)
+    """
+    pca = model.named_steps["pca"]
+    return pd.DataFrame(
+        pca.components_.T,
+        index=feature_names,
+        columns=[f"PC{i+1}" for i in range(pca.n_components_)]
+    )
