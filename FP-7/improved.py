@@ -9,12 +9,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve
 from machine import FEATURES, prepare_data
 def run_improved_machine_learning(df, n_components=5):
-    """
-    FP-7 improved ML using preprocessing only (PCA).
-    Improves:
-    1) ROC discrimination
-    2) Feature structure interpretability
-    """
     X, y = prepare_data(df)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.25, random_state=42, stratify=y
@@ -35,7 +29,7 @@ def run_improved_machine_learning(df, n_components=5):
     }
 def plot_improved_roc_curve(y_true, y_prob):
     """
-    Fig.6: ROC Curve – PCA-Enhanced Win Probability Model
+    Fig.5: ROC Curve – PCA-Enhanced Win Probability Model
     """
     fpr, tpr, _ = roc_curve(y_true, y_prob)
     plt.figure(figsize=(6, 5))
@@ -49,7 +43,7 @@ def plot_improved_roc_curve(y_true, y_prob):
     plt.show()
 def plot_pca_loadings(model, feature_names):
     """
-    Fig.7: PCA Loadings – Dominant Performance Dimensions
+    Fig.6: PCA Loadings – Dominant Performance Dimensions
     """
     pca = model.named_steps["pca"]
     loadings = pd.DataFrame(
