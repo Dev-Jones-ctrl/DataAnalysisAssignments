@@ -30,7 +30,6 @@ def turnover_margin_tests(df):
         df.loc[low, "score_diff"]
     )
     return results
-
 def plot_turnover_margin(df):
     """
     FIGURE CANDIDATE:
@@ -56,7 +55,6 @@ def plot_turnover_margin(df):
     plt.show()
 
 # H2: RED ZONE EFFICIENCY
-
 def redzone_tests(df):
     """
     Test different splits of Red Zone differential.
@@ -151,7 +149,6 @@ def passing_epa_tests(df):
         df.loc[low_q, "score_diff"]
     )
     return results
-
 def plot_passing_epa(df):
     """
     FIGURE CANDIDATE:
@@ -176,7 +173,6 @@ def plot_passing_epa(df):
     plt.ylabel("Score Differential (Home − Away)")
     plt.tight_layout()
     plt.show()
-
 def run_all_hypothesis_tests(df):
     """
     Run all hypothesis tests.

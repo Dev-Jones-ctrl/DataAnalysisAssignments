@@ -59,36 +59,24 @@ def run_improved_machine_learning(df, n_components=5):
         "roc_auc": roc_auc_score(y_test, y_prob)
     }
 # Plotting
-def plot_roc_curves(baseline_results, improved_results):
-    """Fig. 5: Vergleich der ROC-Kurven"""
-    plt.figure(figsize=(6, 5))  
-    # Baseline
-    fpr_b, tpr_b, _ = roc_curve(baseline_results["y_test"], baseline_results["y_prob"])
-    plt.plot(fpr_b, tpr_b, label=f"Baseline (AUC = {baseline_results['roc_auc']:.3f})")   
-    # Improved
-    fpr_i, tpr_i, _ = roc_curve(improved_results["y_test"], improved_results["y_prob"])
-    plt.plot(fpr_i, tpr_i, label=f"PCA Improved (AUC = {improved_results['roc_auc']:.3f})")   
-    plt.plot([0, 1], [0, 1], "k--")
+def plot_final_roc_curve(results):
+    """Fig.5: ROC Curve – Win Probability Model"""
+    fpr, tpr, _ = roc_curve(results["y_test"], results["y_prob"])
+    plt.figure(figsize=(6, 5))
+    plt.plot(fpr, tpr, label=f"Model (AUC = {results['roc_auc']:.3f})")
+    plt.plot([0, 1], [0, 1], "k--", label="Random Guess")
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("Fig.5: ROC Curve Comparison")
+    plt.title("Fig.5: ROC Curve – Final Win Probability Model")
     plt.legend()
+    plt.tight_layout()
     plt.show()
 def plot_pca_loadings(improved_model):
-    """Fig. 6: PCA Feature Importance (aus improved.py)"""
+    """Fig. 6: """
     pca = improved_model.named_steps["pca"]
     loadings = pd.DataFrame(pca.components_.T, index=FEATURES)
     plt.figure(figsize=(8, 5))
     loadings.abs().sum(axis=1).sort_values().plot(kind="barh", color='skyblue')
     plt.xlabel("Aggregate Absolute Loading")
-    plt.title("Fig.6: PCA Feature Importance")
-    plt.show()
-def plot_logistic_feature_importance(baseline_model):
-    """Fig. 7: Standard Feature Importance (aus machine.py)"""
-    coef = baseline_model.named_steps["model"].coef_[0]
-    importance = pd.Series(coef, index=FEATURES).sort_values()
-    plt.figure(figsize=(8, 5))
-    importance.plot(kind="barh", color='salmon')
-    plt.xlabel("Standardized Coefficient")
-    plt.title("Fig.7: Feature Importance (Baseline Model)")
+    plt.title("Fig.6: PCA Structure – Key Performance Factors that Contribute in Combination to Winning")
     plt.show()
