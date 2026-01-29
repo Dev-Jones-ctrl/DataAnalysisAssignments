@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import roc_auc_score, roc_curve
 
 # Data Prep
@@ -20,13 +20,38 @@ def prepare_data(df):
     X = X.replace([np.inf, -np.inf], np.nan)
     mask = X.notna().all(axis=1)
     return X.loc[mask], y.loc[mask]
+def evaluate_models(X, y, cv=5):
+    """
+    Cross-validated comparison of candidate models.
+    """
+    models = {
+        "Logistic Regression": Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", LogisticRegression(max_iter=1000))
+        ])
+    }
+    results = {}
+    for name, model in models.items():
+        scores = cross_val_score(
+            model, X, y, cv=cv, scoring="roc_auc"
+        )
+        results[name] = {
+            "cv_auc_mean": scores.mean(),
+            "cv_auc_std": scores.std(),
+        }
+    return results
 # ML Functions
 def run_machine_learning(df):
-    """Originale FP-6 Analyse (Baseline)"""
+    """
+    Baseline ML analysis with cross-validation.
+    """
     X, y = prepare_data(df)
+    # 1. Cross-validation (model validation)
+    cv_results = evaluate_models(X, y)
+    # 2. Train / test evaluation (final result)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.25, random_state=42, stratify=y
-    ) 
+    )
     model = Pipeline([
         ("scaler", StandardScaler()),
         ("model", LogisticRegression(max_iter=1000))
@@ -35,6 +60,7 @@ def run_machine_learning(df):
     y_prob = model.predict_proba(X_test)[:, 1]
     return {
         "model": model,
+        "cv_results": cv_results,
         "y_test": y_test,
         "y_prob": y_prob,
         "roc_auc": roc_auc_score(y_test, y_prob)
